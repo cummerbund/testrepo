@@ -1,0 +1,15 @@
+extends userman.mail.layout
+
+block title
+	- auto title = "Invitation mail";
+
+block body
+	- import vibe.textfilter.urlencode;
+
+	h1 Invitation to #{serviceName}
+	
+	p Dear #{user.fullName},
+	- auto link = serviceUrl;
+	- link.path = Path("/register");
+	- link.queryString = "email="~urlEncode(user.email);
+	p You have been invited to #{serviceName}. To accept the invitation, please go to <a href="#{link}">#{link}</a> and register an account.

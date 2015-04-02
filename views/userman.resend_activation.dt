@@ -1,0 +1,16 @@
+extends userman.layout_popup
+
+block title
+	- auto title = "Resend activation mail";
+
+block userman.message
+	- if( error.length )
+		p.error= error
+
+	p Please enter your email address below to have the activation mail sent again to your inbox.
+	form(method="POST", action="resend_activation")
+		p
+			label(for="email") Email: 
+			input(type="email", name="email")
+		p
+			button(type="submit") Request activation mail

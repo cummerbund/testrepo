@@ -1,0 +1,38 @@
+extends userman.layout
+
+block title
+	- string title = "Register new account";
+	
+block userman.content
+	- if( error.length > 0 )
+		p.error= error
+
+	form(method="POST", action="")
+		table.form
+			tr
+				td.caption
+					label(for="email") Email:
+				td
+					input(type="email", name="email", value=req.form.get("email", ""))
+			- if( settings.useUserNames )
+				tr
+					td.caption
+						label(for="name") User name:
+					td
+						input(type="text", name="name", value=req.form.get("name", ""))
+			tr
+				td.caption
+					label(for="fullName") Full name:
+				td
+					input(type="text", name="fullName", value=req.form.get("fullName", ""))
+			tr
+				td.caption
+					label(for="password") Password:
+				td
+					input(type="password", name="password")
+			tr
+				td.caption
+					label(for="passwordConfirmation") Password confirmation:
+				td
+					input(type="password", name="passwordConfirmation")
+		button(type="submit") Register account

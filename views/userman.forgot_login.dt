@@ -1,0 +1,19 @@
+extends userman.layout_popup
+
+block title
+	- string title = "Login forgotten";
+	
+block userman.message
+	p Please enter your email address below to have an email sent to you containing your user name and a link to reset your password.
+
+	- if( error.length )
+		p.error= error
+
+	form(method="POST", action="forgot_login")
+		table.form
+			tr
+				td
+					label(for="email") Email:
+				td
+					input(type="email", name="email")
+		button(type="submit") Request password reset

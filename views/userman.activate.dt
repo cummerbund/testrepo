@@ -1,0 +1,10 @@
+extends userman.layout_popup
+
+block title
+	- auto title = "Account Activation";
+	
+block head
+	meta(http-equiv="refresh", content="3; url=/")
+	
+block message
+	p Your account has now been activated.

@@ -1,0 +1,9 @@
+extends userman.layout
+
+block title
+	- string title = "UserMan Demo";
+	
+block userman.content
+	p Hello and Welcome!
+	p
+		a(href="profile") Edit profile
