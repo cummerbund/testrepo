@@ -36,18 +36,11 @@ class MongoUserManController : UserManController {
 		m_users.ensureIndex(["name": 1], IndexFlags.Unique);
 		m_users.ensureIndex(["email": 1], IndexFlags.Unique);
 	}
-
-	override bool isEmailRegistered(string email)
-	{
-		auto bu = m_users.findOne(["email": email], ["auth": true]);
-		return !bu.isNull() && bu.auth.method.get!string.length > 0;
-	}
 	
 	override User.ID addUser(ref User usr)
 	{
 		validateUser(usr);
 		enforce(m_users.findOne(["name": usr.name]).isNull(), "The user name is already taken.");
-		enforce(m_users.findOne(["email": usr.email]).isNull(), "The email address is already in use.");
 		
 		usr.id = User.ID(BsonObjectID.generate());
 		m_users.insert(usr);
@@ -70,20 +63,6 @@ class MongoUserManController : UserManController {
 		return usr.get;
 	}
 
-	override User getUserByEmail(string email)
-	{
-		email = email.toLower();
-		auto usr = m_users.findOne!User(["email": email]);
-		enforce(!usr.isNull(), "There is no user account for the specified email address.");
-		return usr;
-	}
-
-	override User getUserByEmailOrName(string email_or_name)
-	{
-		auto usr = m_users.findOne!User(["$or": [["email": email_or_name.toLower()], ["name": email_or_name]]]);
-		enforce(!usr.isNull(), "The specified email address or user name is not registered.");
-		return usr;
-	}
 
 	override void enumerateUsers(int first_user, int max_count, void delegate(ref User usr) del)
 	{
@@ -106,21 +85,12 @@ class MongoUserManController : UserManController {
 	override void updateUser(in ref User user)
 	{
 		validateUser(user);
-		enforce(m_settings.useUserNames || user.name == user.email, "User name must equal email address if user names are not used.");
+		enforce(m_settings.useUserNames, "User name must equal email address if user names are not used.");
 		// FIXME: enforce that no user names or emails are used twice!
 
 		m_users.update(["_id": user.id.bsonObjectIDValue], user);
 	}
 
-	override void setEmail(User.ID user, string email)
-	{
-		m_users.update(["_id": user.bsonObjectIDValue], ["$set": ["email": email]]);
-	}
-
-	override void setFullName(User.ID user, string full_name)
-	{
-		m_users.update(["_id": user.bsonObjectIDValue], ["$set": ["fullName": full_name]]);
-	}
 
 	override void setPassword(User.ID user, string password)
 	{

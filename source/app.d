@@ -24,7 +24,7 @@ shared static this()
 	
 	auto settings = new HTTPServerSettings;
 	settings.sessionStore = new MemorySessionStore;
-	settings.port = 1410;
+	settings.port = 2012;
         settings.bindAddresses = ["::1", "127.0.0.1"];
 
 	listenHTTP(settings, router);

@@ -40,13 +40,7 @@ class FileUserManController : UserManController {
 				createDirectory(m_basePath ~ p);
 	}
 
-	override bool isEmailRegistered(string email)
-	{
-		return existsFile(userByEmailFile(email));
-	}
-
 	private final Path userByNameFile(string name) { return m_basePath ~ "user/byName/" ~ (urlEncode(name) ~ ".json"); }
-	private final Path userByEmailFile(string email) { return m_basePath ~ "user/byEmail/" ~ (urlEncode(email) ~ ".json"); }
 	private final Path userFile(User.ID id) { return m_basePath ~ "user/" ~ (id.toString() ~ ".json"); }
 	private final Path groupByNameFile(string name) { return m_basePath ~ "group/byName/" ~ (urlEncode(name) ~ ".json"); }
 	private final Path groupFile(Group.ID id) { return m_basePath ~ "group/" ~ (id.toString() ~ ".json"); }
@@ -54,7 +48,6 @@ class FileUserManController : UserManController {
 	override User.ID addUser(ref User usr)
 	{
 		validateUser(usr);
-		enforce(!isEmailRegistered(usr.email), "The email address is already taken.");
 		enforce(!existsFile(userByNameFile(usr.name)), "The user name is already taken.");
 
 		usr.id = User.ID(randomUUID());
@@ -62,8 +55,6 @@ class FileUserManController : UserManController {
 			usr.resetCodeExpireTime = SysTime(0);
 
 		// Indexes
-		writeFileUTF8(userByEmailFile(usr.email), Json(usr.id).toString());
-		scope (failure) removeFile(userByEmailFile(usr.email));
 		writeFileUTF8(userByNameFile(usr.name), Json(usr.id).toString());
 		scope (failure) removeFile(userByNameFile(usr.name));
 
@@ -82,19 +73,6 @@ class FileUserManController : UserManController {
 		name = name.toLower();
 		auto uid = User.ID.fromString(readFileUTF8(userByNameFile(name)).deserializeJson!string);
 		return getUser(uid);
-	}
-
-	override User getUserByEmail(string email)
-	{
-		email = email.toLower();
-		auto uid = User.ID.fromString(readFileUTF8(userByEmailFile(email)).deserializeJson!string);
-		return getUser(uid);
-	}
-
-	override User getUserByEmailOrName(string email_or_name)
-	{
-		if (isEmailRegistered(email_or_name)) return getUserByEmail(email_or_name);
-		else return getUserByName(email_or_name);
 	}
 
 	override void enumerateUsers(int first_user, int max_count, void delegate(ref User usr) del)
@@ -126,7 +104,6 @@ class FileUserManController : UserManController {
 	override void deleteUser(User.ID user_id)
 	{
 		auto usr = getUser(user_id);
-		removeFile(userByEmailFile(usr.email));
 		removeFile(userByNameFile(usr.name));
 		removeFile(userFile(user_id));
 	}
@@ -136,21 +113,11 @@ class FileUserManController : UserManController {
 
 		enforce(existsFile(userFile(user.id)), "Invalid user ID.");
 		validateUser(user);
-		enforce(m_settings.useUserNames || user.name == user.email, "User name must equal email address if user names are not used.");
+		enforce(m_settings.useUserNames, "User name must equal email address if user names are not used.");
 
 		auto oldusr = getUser(user.id);
-		auto oldemailfile = userByEmailFile(oldusr.email);
-		auto newemailfile = userByEmailFile(user.email);
 		auto oldnamefile = userByNameFile(oldusr.name);
 		auto newnamefile = userByNameFile(user.name);
-
-		if (existsFile(newemailfile)) {
-			auto euid = User.ID.fromString(readFileUTF8(newemailfile).deserializeJson!string);
-			enforce(euid == user.id, "E-mail address is already in use.");
-		} else {
-			moveFile(oldemailfile, newemailfile);
-		}
-		scope (failure) moveFile(newemailfile, oldemailfile);
 
 		if (existsFile(newnamefile)) {
 			auto euid = User.ID.fromString(readFileUTF8(newnamefile).deserializeJson!string);
@@ -161,20 +128,6 @@ class FileUserManController : UserManController {
 		scope (failure) moveFile(newnamefile, oldnamefile);
 
 		writeFileUTF8(userFile(user.id), serializeToPrettyJson(user));
-	}
-	
-	override void setEmail(User.ID user, string email)
-	{
-		auto usr = getUser(user);
-		usr.email = email;
-		updateUser(usr);
-	}
-
-	override void setFullName(User.ID user, string full_name)
-	{
-		auto usr = getUser(user);
-		usr.fullName = full_name;
-		updateUser(usr);
 	}
 	
 	override void setPassword(User.ID user, string password)

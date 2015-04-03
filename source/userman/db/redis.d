@@ -36,7 +36,6 @@ class RedisUserManController : UserManController {
 
 		// secondary indexes
 		RedisHash!(long) m_usersByName;
-		RedisHash!(long) m_usersByEmail;
 		//RedisHash!(long) m_userGroups;
 		RedisHash!long m_groupsByName;
 	}
@@ -74,18 +73,7 @@ class RedisUserManController : UserManController {
 		m_groups = RedisObjectCollection!(RedisStripped!Group, RedisCollectionOptions.supportPaging)(m_redisDB, "userman:group");
 		m_groupProperties = RedisCollection!(RedisHash!string, RedisCollectionOptions.none)(m_redisDB, "userman:group", "properties");
 		m_usersByName = RedisHash!long(m_redisDB, "userman:user:byName");
-		m_usersByEmail = RedisHash!long(m_redisDB, "userman:user:byEmail");
 		m_groupsByName = RedisHash!long(m_redisDB, "userman:group:byName");
-	}
-
-	override bool isEmailRegistered(string email)
-	{
-		auto uid = m_usersByEmail.get(email, -1);
-		if (uid >= 0){
-			string method = m_userAuthInfo[uid].method;
-			return method != string.init && method.length > 0;
-		}
-		return false;
 	}
 	
 	override User.ID addUser(ref User usr)
@@ -93,15 +81,12 @@ class RedisUserManController : UserManController {
 		validateUser(usr);
 
 		enforce(!m_usersByName.exists(usr.name), "The user name is already taken.");
-		enforce(!m_usersByEmail.exists(usr.email), "The email address is already taken.");
 
 		auto uid = m_users.createID();
 		scope (failure) m_users.remove(uid);
 		usr.id = User.ID(uid);
 
 		// Indexes
-		enforce(m_usersByEmail.setIfNotExist(usr.email, uid), "Failed to associate new user with e-mail address.");
-		scope (failure) m_usersByEmail.remove(usr.email);
 		enforce(m_usersByName.setIfNotExist(usr.name, uid), "Failed to associate new user with user name.");
 		scope (failure) m_usersByName.remove(usr.name);
 
@@ -157,28 +142,6 @@ class RedisUserManController : UserManController {
 		}
 	}
 
-	override User getUserByEmail(string email)
-	{
-		email = email.toLower();
-
-		User.ID uid = m_usersByEmail.get(email, -1);
-		try return getUser(uid);
-		catch (Exception e) {
-			throw new Exception("There is no user account for the specified email address.");
-		}
-	}
-
-	override User getUserByEmailOrName(string email_or_name)
-	{
-		long uid = m_usersByEmail.get(email_or_name, -1);
-		if (uid < 0) uid = m_usersByName.get(email_or_name, -1);
-
-		try return getUser(User.ID(uid));
-		catch (Exception e) {
-			throw new Exception("The specified email address or user name is not registered.");
-		}
-	}
-
 	override void enumerateUsers(int first_user, int max_count, void delegate(ref User usr) del)
 	{
 		foreach (userId; m_redisDB.zrange!string("userman:user:all", first_user, first_user + max_count)) {
@@ -198,7 +161,6 @@ class RedisUserManController : UserManController {
 
 		// Indexes
 		m_users.remove(user_id.longValue);
-		m_usersByEmail.remove(usr.email);
 		m_usersByName.remove(usr.name);
 
 		// Credentials
@@ -216,22 +178,13 @@ class RedisUserManController : UserManController {
 	{
 		enforce(m_users.isMember(user.id.longValue), "Invalid user ID.");
 		validateUser(user);
-		enforce(m_settings.useUserNames || user.name == user.email, "User name must equal email address if user names are not used.");
-
-		auto exeid = m_usersByEmail.get(user.email, -1);
-		enforce(exeid < 0 || exeid == user.id.longValue,
-			"E-mail address is already in use.");
-		enforce(exeid == user.id.longValue || m_usersByEmail.setIfNotExist(user.email, user.id.longValue),
-			"Failed to associate new e-mail address to user.");
-		scope (failure) m_usersByEmail.remove(user.email);
+		enforce(m_settings.useUserNames, "User name must equal email address if user names are not used.");
 
 		auto exnid = m_usersByName.get(user.name, -1);
 		enforce(exnid < 0 || exnid == user.id.longValue,
 			"User name address is already in use.");
 		enforce(exnid == user.id.longValue || m_usersByName.setIfNotExist(user.name, user.id.longValue),
 			"Failed to associate new user name to user.");
-		scope (failure) m_usersByEmail.remove(user.name);
-
 
 		// User
 		m_users[user.id.longValue] = user.redisStrip();
@@ -252,26 +205,6 @@ class RedisUserManController : UserManController {
 			else
 				m_redisDB.srem("userman:group:" ~ gid.to!string ~ ":members", user.id);
 		}
-	}
-	
-	override void setEmail(User.ID user, string email)
-	{
-		validateEmail(email);
-		enforce(m_users.isMember(user.longValue), "Invalid user ID.");
-
-		auto exid = m_usersByEmail.get(email, -1);
-		enforce(exid < 0 || exid == user.longValue,
-			"E-mail address is already in use.");
-		enforce(exid == user.longValue || m_usersByEmail.setIfNotExist(email, user.longValue),
-			"Failed to associate new e-mail address to user.");
-
-		m_users[user.longValue].email = email;
-	}
-
-	override void setFullName(User.ID user, string full_name)
-	{
-		enforce(m_users.isMember(user.longValue), "Invalid user ID.");
-		m_users[user.longValue].fullName = full_name;
 	}
 	
 	override void setPassword(User.ID user, string password)

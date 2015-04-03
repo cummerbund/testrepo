@@ -40,13 +40,6 @@ void registerUserManWebInterface(URLRouter router, UserManController controller)
 */
 void updateProfile(UserManController controller, User user, HTTPServerRequest req)
 {
-	if (controller.settings.useUserNames) {
-		if (auto pv = "name" in req.form) user.fullName = *pv;
-		if (auto pv = "email" in req.form) user.email = *pv;
-	} else {
-		if (auto pv = "email" in req.form) user.email = user.name = *pv;
-	}
-	if (auto pv = "full_name" in req.form) user.fullName = *pv;
 
 	if (auto pv = "password" in req.form) {
 		enforce(user.auth.method == "password", "User account has no password authentication.");
@@ -59,8 +52,6 @@ void updateProfile(UserManController controller, User user, HTTPServerRequest re
 	controller.updateUser(user);
 
 	req.session.set("userName", user.name);
-	req.session.set("userFullName", user.fullName);
-	req.session.set("userEmail", user.email);
 }
 
 
@@ -210,9 +201,7 @@ class UserManWebInterface {
 		UserManController m_controller;
 		UserManWebAuthenticator m_auth;
 		string m_prefix;
-		SessionVar!(string, "userEmail") m_sessUserEmail;
 		SessionVar!(string, "userName") m_sessUserName;
-		SessionVar!(string, "userFullName") m_sessUserFullName;
 		SessionVar!(string, "userID") m_sessUserID;
 	}
 	
@@ -235,7 +224,7 @@ class UserManWebInterface {
 	{
 		User user;
 		try {
-			user = m_controller.getUserByEmailOrName(name);
+			user = m_controller.getUserByName(name);
 			enforce(testSimplePasswordHash(user.auth.passwordHash, password), "Wrong password.");
 		} catch (Exception e) {
 			logDebug("Error logging in: %s", e.toString().sanitize);
@@ -243,10 +232,8 @@ class UserManWebInterface {
 		}
 
 		enforce(user.active, "The account is not yet activated.");
-		
-		m_sessUserEmail = user.email;
+
 		m_sessUserName = user.name;
-		m_sessUserFullName = user.fullName;
 		m_sessUserID = user.id;
 		.redirect(redirect.length ? redirect : m_prefix);
 	}
@@ -266,15 +253,15 @@ class UserManWebInterface {
 	}
 	
 	@errorDisplay!getRegister
-	void postRegister(ValidEmail email, Nullable!ValidUsername name, string fullName, ValidPassword password, Confirm!"password" passwordConfirmation)
+	void postRegister(Nullable!ValidUsername name, ValidPassword password, Confirm!"password" passwordConfirmation)
 	{
 		string username;
 		if (m_controller.settings.useUserNames) {
 			enforce(!name.isNull(), "Missing user name field.");
 			username = name;
-		} else username = email;
+		}
 
-		m_controller.registerUser(email, username, fullName, password);
+		m_controller.registerUser(username, password);
 
 		if (m_controller.settings.requireAccountValidation) {
 			string error;
@@ -284,73 +271,10 @@ class UserManWebInterface {
 		}
 	}
 	
-	void getResendActivation(string _error = "")
-	{
-		string error = _error;
-		render!("userman.resend_activation.dt", error);
-	}
-
-	@errorDisplay!getResendActivation
-	void postResendActivation(ValidEmail email)
-	{
-		try {
-			m_controller.resendActivation(email);
-			render!("userman.resend_activation_done.dt");
-		} catch (Exception e) {
-			logDebug("Error sending activation mail: %s", e.toString().sanitize);
-			throw new Exception("Failed to send activation mail. Please try again later. ("~e.msg~").");
-		}
-	}
-
-	void getActivate(ValidEmail email, string code)
-	{
-		m_controller.activateUser(email, code);
-		auto user = m_controller.getUserByEmail(email);
-		m_sessUserEmail = user.email;
-		m_sessUserName = user.name;
-		m_sessUserFullName = user.fullName;
-		m_sessUserID = user.id;
-		render!("userman.activate.dt");
-	}
-	
-	void getForgotLogin(string _error = "")
-	{
-		auto error = _error;
-		render!("userman.forgot_login.dt", error);
-	}
-
-	@errorDisplay!getForgotLogin
-	void postForgotLogin(ValidEmail email)
-	{
-		try {
-			m_controller.requestPasswordReset(email);
-		} catch(Exception e) {
-			// ignore errors, so that registered e-mails cannot be determined
-			logDiagnostic("Failed to send password reset mail to %s: %s", email, e.msg);
-		}
-
-		render!("userman.forgot_login_sent.dt");
-	}
-
-	void getResetPassword(string _error = "")
-	{
-		string error = _error;
-		render!("userman.reset_password.dt", error);
-	}
-
-	@errorDisplay!getResetPassword
-	void postResetPassword(ValidEmail email, string code, ValidPassword password, Confirm!"password" password_confirmation, HTTPServerResponse res)
-	{
-		m_controller.resetPassword(email, code, password);
-		res.headers["Refresh"] = "3; url=" ~ m_controller.settings.serviceUrl.toString();
-		render!("userman.reset_password_done.dt");
-	}
 
 	@auth
 	void getProfile(HTTPServerRequest req, User _user, string _error = "")
 	{
-		req.form["full_name"] = _user.fullName;
-		req.form["email"] = _user.email;
 		bool useUserNames = m_controller.settings.useUserNames;
 		auto user = _user;
 		string error = _error;
