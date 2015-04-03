@@ -102,6 +102,7 @@ struct User {
 	@(.name("_id")) ID id;
 	bool active;
 	bool banned;
+	bool vendor;
 	string name;
 	Group.ID[] groups;
 	string activationCode;
@@ -123,6 +124,37 @@ struct Item {
 	int price;
 	Currency.code currency;
 	int available;
+	string imagename;
+}
+
+struct Review {
+	User.ID recipient;
+	string text;
+	int rating;
+	bool escrow;
+	Item.ID product;
+	int value;
+}
+
+struct Transaction {
+	alias .ID!Transaction ID;
+	@(.name("_id")) ID id;
+	User.ID vendor;
+	User.ID customer;
+	User.ID escrow;
+	Item.ID item;
+	bool complete;
+	int price;
+	Currency.code currency;
+}
+
+struct Messages {
+	alias .ID!Messages ID;
+	@(.name("_id")) ID id;
+	User.ID sender;
+	User.ID[] recipients;
+	bool transaction;
+	Transaction.ID transactionid;
 }
 
 struct Currency {
