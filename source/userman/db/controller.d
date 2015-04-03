@@ -29,14 +29,10 @@ import std.string;
 
 UserManController createUserManController(UserManSettings settings)
 {
-	import userman.db.file;
 	import userman.db.mongo;
-	import userman.db.redis;
 	
 	auto url = settings.databaseURL;
-	if (url.startsWith("redis://")) return new RedisUserManController(settings);
-	else if (url.startsWith("mongodb://")) return new MongoUserManController(settings);
-	else if (url.startsWith("file://")) return new FileUserManController(settings);
+	if (url.startsWith("mongodb://")) return new MongoUserManController(settings);
 	else throw new Exception("Unknown URL schema: "~url);
 }
 
@@ -124,7 +120,7 @@ struct Item {
 	string description;
 	User.ID uid;
 	int price;
-	Currency.code currency;
+	string currency;
 	int available;
 	string imagename;
 }
@@ -147,7 +143,7 @@ struct Transaction {
 	Item.ID item;
 	bool complete;
 	int price;
-	Currency.code currency;
+	string currency;
 }
 
 struct Messages {
