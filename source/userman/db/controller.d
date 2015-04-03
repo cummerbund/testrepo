@@ -110,7 +110,9 @@ struct User {
 	SysTime resetCodeExpireTime;
 	AuthInfo auth;
 	Json[string] properties;
-
+	string pgpkey;
+	string country;
+	Transaction.ID[] transactions;
 	bool isInGroup(Group.ID group) const { return groups.countUntil(group) >= 0; }
 }
 

@@ -44,6 +44,8 @@ class FileUserManController : UserManController {
 	private final Path userFile(User.ID id) { return m_basePath ~ "user/" ~ (id.toString() ~ ".json"); }
 	private final Path groupByNameFile(string name) { return m_basePath ~ "group/byName/" ~ (urlEncode(name) ~ ".json"); }
 	private final Path groupFile(Group.ID id) { return m_basePath ~ "group/" ~ (id.toString() ~ ".json"); }
+	private final Path itemByIdFile(Item.ID id) { return m_basePath ~ "item/byId/" ~ (id.toString() ~ ".json"); }
+	private final Path itemFile(Item.ID id) { return m_basePath ~ "item/" ~ (id.toString() ~ ".json"); }
 	
 	override User.ID addUser(ref User usr)
 	{
@@ -61,6 +63,23 @@ class FileUserManController : UserManController {
 		writeFileUTF8(userFile(usr.id), serializeToPrettyJson(usr));
 
 		return usr.id;
+	}
+
+	override Item.ID addItem(itm)
+	{
+		itm.ID = Item.ID(randomUUID());
+
+		writeFileUTF8(itemByIdFile(itm.ID));
+		scope(failure) removeFile(itemByIdFile(itm.ID));
+
+		writeFileUTF8(itemFile(itm.ID), serializeToPrettyJson(itm));
+
+		return Item.ID;
+	}
+
+	override Item getItem(Item.ID id)
+	{
+		return deserializeJson!Item(readFileUTF8(itemFile(id)));
 	}
 
 	override User getUser(User.ID id)
