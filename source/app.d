@@ -14,7 +14,7 @@ shared static this()
 {
 	auto usettings = new UserManSettings;
 	usettings.requireAccountValidation = false;
-	usettings.databaseURL = "mongodb://./testdb/";
+	usettings.databaseURL = "mongodb://127.0.0.1/test/";
 
 	auto uctrl = createUserManController(usettings);
 
