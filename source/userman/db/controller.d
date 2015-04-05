@@ -29,10 +29,10 @@ import std.string;
 
 UserManController createUserManController(UserManSettings settings)
 {
-	import userman.db.mongo;
+	import userman.db.redis;
 	
 	auto url = settings.databaseURL;
-	if (url.startsWith("mongodb://")) return new MongoUserManController(settings);
+	if (url.startsWith("redis://")) return new RedisUserManController(settings);
 	else throw new Exception("Unknown URL schema: "~url);
 }
 
